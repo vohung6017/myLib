@@ -1121,7 +1121,7 @@ class ExcelExporter {
     }
 
     /**
-     * Export data to Excel file (.xls)
+     * Export data to Excel file (.xlsx)
      * Uses XML spreadsheet format to create Excel file
      * @param {Array} data - Data array
      * @param {Object} options - Options
@@ -1145,8 +1145,11 @@ class ExcelExporter {
         // Determine columns
         const cols = columns || this._autoDetectColumns(data);
 
+        // Calculate dynamic column widths based on all data
+        const colsWithWidths = this._calculateDynamicWidths(data, cols, dateFormat);
+
         // Create Excel XML
-        let xml = this._createExcelXML(data, cols, {
+        let xml = this._createExcelXML(data, colsWithWidths, {
             sheetName: this._sanitizeSheetName(sheetName),
             title,
             includeTimestamp,
@@ -1155,7 +1158,7 @@ class ExcelExporter {
         });
 
         // Download file
-        this._downloadFile(xml, `${filename}.xls`, 'application/vnd.ms-excel');
+        this._downloadFile(xml, `${filename}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
     /**
@@ -1286,8 +1289,8 @@ class ExcelExporter {
                 } else {
                     columns.push({
                         header: this._formatHeader(key),
-                        key: fullKey,
-                        width: this._estimateWidth(key, value)
+                        key: fullKey
+                        // width will be calculated dynamically
                     });
                 }
             }
@@ -1295,6 +1298,56 @@ class ExcelExporter {
 
         extractKeys(firstItem);
         return columns;
+    }
+
+    /**
+     * Calculate dynamic column widths based on all data
+     * @param {Array} data - Full data array
+     * @param {Array} columns - Column definitions
+     * @param {string} dateFormat - Date format for formatting
+     * @returns {Array} - Columns with calculated widths
+     */
+    static _calculateDynamicWidths(data, columns, dateFormat) {
+        // Character width multiplier (approximate pixels per character in Arial 10pt)
+        const CHAR_WIDTH = 7;
+        // Padding for cell margins
+        const PADDING = 16;
+        // Minimum and maximum column widths
+        const MIN_WIDTH = 50;
+        const MAX_WIDTH = 400;
+
+        return columns.map(col => {
+            // If width is explicitly set, use it
+            if (col.width) {
+                return col;
+            }
+
+            // Start with header length
+            const headerText = col.header || col.key;
+            let maxLength = headerText.length;
+
+            // Iterate through all data to find the maximum value length
+            for (const item of data) {
+                const value = this._getNestedValue(item, col.key);
+                const { formatted } = this._getExcelType(value, col.format, dateFormat);
+                const valueLength = String(formatted).length;
+                
+                if (valueLength > maxLength) {
+                    maxLength = valueLength;
+                }
+            }
+
+            // Calculate width: characters * char_width + padding
+            const calculatedWidth = (maxLength * CHAR_WIDTH) + PADDING;
+            
+            // Clamp between min and max
+            const finalWidth = Math.max(MIN_WIDTH, Math.min(calculatedWidth, MAX_WIDTH));
+
+            return {
+                ...col,
+                width: finalWidth
+            };
+        });
     }
 
     /**
@@ -1309,7 +1362,8 @@ class ExcelExporter {
     }
 
     /**
-     * Estimate column width
+     * Estimate column width (legacy - kept for backward compatibility)
+     * @deprecated Use _calculateDynamicWidths instead
      */
     static _estimateWidth(key, sampleValue) {
         const keyLength = key.length * 8;
