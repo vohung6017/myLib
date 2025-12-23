@@ -1121,7 +1121,7 @@ class ExcelExporter {
     }
 
     /**
-     * Export data to Excel file (.xlsx)
+     * Export data to Excel file (.xls)
      * Uses XML spreadsheet format to create Excel file
      * @param {Array} data - Data array
      * @param {Object} options - Options
@@ -1147,7 +1147,7 @@ class ExcelExporter {
 
         // Create Excel XML
         let xml = this._createExcelXML(data, cols, {
-            sheetName,
+            sheetName: this._sanitizeSheetName(sheetName),
             title,
             includeTimestamp,
             headerStyle,
@@ -1155,7 +1155,7 @@ class ExcelExporter {
         });
 
         // Download file
-        this._downloadFile(xml, `${filename}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        this._downloadFile(xml, `${filename}.xls`, 'application/vnd.ms-excel');
     }
 
     /**
@@ -1455,6 +1455,17 @@ class ExcelExporter {
     }
 
     /**
+     * Sanitize sheet name for Excel
+     */
+    static _sanitizeSheetName(name) {
+        if (!name) return 'Sheet1';
+        return name
+            .replace(/[:\\\/?*\[\]]/g, '') // Remove invalid characters
+            .substring(0, 31)              // Max 31 chars
+            || 'Sheet1';                   // Fallback if empty
+    }
+
+    /**
      * Download file
      */
     static _downloadFile(content, filename, mimeType) {
@@ -1534,7 +1545,7 @@ class ExcelExporter {
 
         const excelOption = document.createElement('button');
         excelOption.type = 'button';
-        excelOption.innerHTML = '📊 Excel (.xlsx)';
+        excelOption.innerHTML = '📊 Excel (.xls)';
         excelOption.onclick = () => {
             if (typeof getData === 'function') {
                 this.toExcel(getData(), exportOptions);
@@ -1572,7 +1583,7 @@ class ExcelExporter {
 }
 
 /**
- * DateFormatter - Date Formatting Library
+ * DateFormat - Date Formatting Library
  * 
  * Use with DateRangePicker or any date input.
  * 
@@ -1591,17 +1602,17 @@ class ExcelExporter {
  * 
  * Usage:
  * // Single format
- * DateFormatter.format(date, 'YYYY-MM-DD');
+ * DateFormat.format(date, 'YYYY-MM-DD');
  * 
  * // Parse from daterangepicker
- * const { start, end } = DateFormatter.parseRange('01/12/2024 - 31/12/2024');
+ * const { start, end } = DateFormat.parseRange('01/12/2024 - 31/12/2024');
  * 
  * // Format range for API
- * const params = DateFormatter.formatRangeForAPI(startDate, endDate);
+ * const params = DateFormat.formatRangeForAPI(startDate, endDate);
  * // => { startDate: '2024-12-01', endDate: '2024-12-31' }
  */
 
-class DateFormatter {
+class DateFormat {
     // Supported formats
     static FORMATS = {
         'YYYY-MM-DD': 'YYYY-MM-DD',
@@ -2060,5 +2071,5 @@ class DateFormatter {
 
 // Export for module usage
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { Pagination, FrontendPagination, SearchHelper, ExcelExporter, DateFormatter };
+    module.exports = { Pagination, FrontendPagination, SearchHelper, ExcelExporter, DateFormat };
 }
